@@ -10,32 +10,13 @@ import { AccountHandler } from './account';
 const START_BLOCK = BigInt(8263710);
 
 export class CrowdloanHandler {
-  static async check({ event, block: { timestamp, block } }: SubstrateEvent) {
+  static async check({ event, block: { events, timestamp, block } }: SubstrateEvent) {
     const { data, method } = event;
-
-    if (method === 'MemoUpdated') {
-      const [account, paraId, memo] = JSON.parse(data.toString());
-
-      const instance = new CrowdloanMemo(account);
-
-      instance.who = account;
-      instance.paraId = paraId;
-      instance.memo = memo;
-      instance.timestamp = timestamp;
-      instance.blockId = block.hash.toString();
-
-      try {
-        await instance.save();
-      } catch (error) {
-        logger('CrowdloanHandler error method: ', method);
-      }
-    }
 
     if (method === 'Contributed') {
       const [account, paraId, amount] = JSON.parse(data.toString()) as [string, number, number];
-
       if (paraId !== 2003) {
-        return;
+          return;
       }
 
       const balance = BigInt(amount);
@@ -43,7 +24,29 @@ export class CrowdloanHandler {
       await AccountHandler.ensureAccount(account);
       await AccountHandler.updateCrowdloanStatistic(account, balance);
 
-      const refer = (await CrowdloanMemo.get(account))?.memo || null;
+      var refer = (await CrowdloanMemo.get(account))?.memo || null;
+      if (refer == null) {
+          const memoInfo = events.find(item => item.event.method === 'MemoUpdated');
+          if (memoInfo != null) {
+              const { data, method } = memoInfo.event;
+              const [account, paraId, memo] = JSON.parse(data.toString());
+
+              const instance = new CrowdloanMemo(account);
+
+              instance.who = account;
+              instance.paraId = paraId;
+              instance.memo = memo;
+              instance.timestamp = timestamp;
+              instance.blockId = block.hash.toString();
+
+              try {
+                  await instance.save();
+              } catch (error) {
+                  logger('CrowdloanHandler error method: ', method);
+              }
+              refer = memo;
+          }
+      }
       const rewardEarly =
         block.header.number.toBigInt() < START_BLOCK ? balance / BigInt(5) : BigInt(0);
       const powerBase = balance + rewardEarly;
