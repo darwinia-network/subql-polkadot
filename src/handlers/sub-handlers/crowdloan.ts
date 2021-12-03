@@ -16,13 +16,13 @@ export class CrowdloanHandler {
     } = substrateEvent;
 
     if (method === 'MemoUpdated') {
-      this.handleMemoUpdate(substrateEvent);
+      await this.handleMemoUpdate(substrateEvent);
     }
 
     if (method === 'Contributed') {
       await this.ensureMemoUpdated(substrateEvent);
 
-      this.handleContributed(substrateEvent);
+      await this.handleContributed(substrateEvent);
     }
   }
 
@@ -66,6 +66,7 @@ export class CrowdloanHandler {
   static async handleContributed({
     event: { data, method },
     block: { timestamp, block },
+    idx,
   }: SubstrateEvent) {
     const [account, paraId, amount] = JSON.parse(data.toString()) as [string, number, number];
 
@@ -84,7 +85,9 @@ export class CrowdloanHandler {
     const powerBase = balance + rewardEarly;
     const powerWho = powerBase + (!refer ? BigInt(0) : powerBase / BigInt(20));
     const powerRefer = !refer ? BigInt(0) : powerBase / BigInt(20);
-    const instance = new CrowdloanContributed(block.hash.toString());
+    const instance = new CrowdloanContributed(
+      block.header.number.toString() + '-' + idx.toString(10)
+    );
 
     await CrowdloanWho.ensure(account);
     await CrowdloanWho.update(account, balance, powerWho);
