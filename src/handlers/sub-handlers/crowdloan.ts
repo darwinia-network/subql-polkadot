@@ -26,12 +26,12 @@ export class CrowdloanHandler {
     }
   }
 
-  static async ensureMemoUpdated({ event, block }: SubstrateEvent) {
-    const [account] = JSON.parse(event.data.toString()) as [string, number, number];
+  static async ensureMemoUpdated({ event, extrinsic, block }: SubstrateEvent) {
+    const [account] = JSON.parse(event.data.toString());
     const target = await CrowdloanMemo.get(account);
 
     if (!target) {
-      const memoEvent = block.events.find((item) => item.event.method === 'MemoUpdated');
+      const memoEvent = extrinsic.events.find((item) => item.event.method === 'MemoUpdated');
 
       if (memoEvent) {
         await this.handleMemoUpdate({ event: memoEvent.event, block });
